@@ -1,7 +1,7 @@
 import json
 import requests
 import paho.mqtt.client as mqtt
-from datetime import datetime
+from datetime import datetime,timedelta
 import random
 import string
 import pymysql
@@ -127,7 +127,7 @@ def generate_json(mqtt_data):
                 "startEpochMicrosec": collection_start_time_micros,
                 "lastEpochMicrosec": collection_end_time_micros,
                 "nfNamingCode": "oam",
-                "nfVendorName": "gregins",
+                "nfVendorName": "greigns",
                 "timeZoneOffset": "+00:00",
                 "version": "4.1",
                 "vesEventListenerVersion": "7.2.1"
@@ -150,7 +150,7 @@ def generate_json(mqtt_data):
 
 # POST设备数据到上层API
 def post_fault_data(device_type, DeviceId, alarm_data):
-    base_url = "http://192.168.0.25/api/v1/ORAN/O1Fault"
+    base_url = "http://192.168.0.40/api/v1/ORAN/O1Fault"
     server_id = 10001
     url = f"{base_url}?serverid={server_id}"
 
@@ -168,6 +168,8 @@ def post_fault_data(device_type, DeviceId, alarm_data):
         "IsCleared": alarm_data.get("IsCleared", "")
     }
 
+    print(formatted_data)
+
     response = requests.post(url, headers=headers, json=formatted_data)
     if response.status_code == 200:
         print(f"Success: {response.json()}")
@@ -175,17 +177,17 @@ def post_fault_data(device_type, DeviceId, alarm_data):
         print(f"Error: {response.status_code}, {response.text}")
 
 # 根据 fault_id 处理不同设备类型的告警
-def handle_fault(fault_id, is_cleared):
+def handle_fault(fault_id, is_cleared, mqtt_data):
     if fault_id in fault_to_device_mapping:
         device_type, _ = fault_to_device_mapping[fault_id]
 
         # 设置告警事件数据
         alarm_data = {
             "AlarmId": fault_id,
-            "EventTime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "EventSeverity": "High",
-            "SystemDN": "system_dn_example",
-            "ProbableCause": "Example Cause",
+            "EventTime": (datetime.now() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S"),
+            "EventSeverity": mqtt_data['notification']['alarm-notif']["fault-severity"],
+            "SystemDN": "gregins",
+            "ProbableCause": mqtt_data['notification']['alarm-notif']["fault-text"],
             "IsCleared": "Idle" if is_cleared == "false" else "Active"
         }
 
@@ -227,7 +229,7 @@ def on_message(client, userdata, msg):
                 update_device_status(fault_id, device_type, 1, is_cleared)
 
             # 处理告警并转发到上层装置
-            handle_fault(fault_id, is_cleared)
+            handle_fault(fault_id, is_cleared, mqtt_data)
 
     except Exception as e:
         print('Error occurred while processing message:', e)

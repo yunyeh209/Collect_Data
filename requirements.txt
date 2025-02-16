@@ -1,8 +1,0 @@
-jsonlib-python3==1.6.1  
-requests==2.31.0
-paho-mqtt==1.6.1
-pymysql==1.0.3
-pysnmp==4.4.12
-influxdb-client==1.36.0
-watchdog==5.0.2
-
